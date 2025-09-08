@@ -1,265 +1,518 @@
-import React, { useEffect, useState } from 'react';
-import { AppProvider, useApp } from './contexts/AppContext';
-import { TranslationProvider } from './components/TranslationProvider';
-import { supabase, getCurrentUser, getProducts, getMarketTrends, testConnection } from './lib/supabase';
-import Header from './components/Header';
-import HomePage from './components/HomePage';
-import AuthModal from './components/AuthModal';
-import FarmerDashboard from './components/FarmerDashboard';
-import ConsumerDashboard from './components/ConsumerDashboard';
-import AdoptAFarm from './components/AdoptAFarm';
-import NGOSupport from './components/NGOSupport';
-import ChatBot from './components/ChatBot';
-import CheckoutModal from './components/CheckoutModal';
-import MarketTrends from './components/MarketTrends';
-import FarmerNews from './components/FarmerNews';
-import { mockFarmers, mockNGOs, mockNewsArticles } from './data/mockData';
+import { createClient } from '@supabase/supabase-js'
 
-const AppContent = () => {
-  const { state, dispatch } = useApp();
-  const [currentPage, setCurrentPage] = useState('home');
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dbConnected, setDbConnected] = useState(false);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-  useEffect(() => {
-    // Test database connection and initialize app
-    const initializeApp = async () => {
-      try {
-        // Test database connection
-        const connected = await testConnection();
-        setDbConnected(connected);
-        
-        if (connected) {
-          console.log('✅ Database connected successfully');
-          
-          // Load real data from Supabase
-          const [products, marketTrends] = await Promise.all([
-            getProducts(),
-            getMarketTrends()
-          ]);
-          
-          dispatch({ type: 'SET_PRODUCTS', payload: products });
-          dispatch({ type: 'SET_MARKET_TRENDS', payload: marketTrends });
-        } else {
-          console.log('⚠️ Database not connected, using mock data');
-          // Fallback to mock data if database is not connected
-          const { mockProducts, mockMarketTrends } = await import('./data/mockData');
-          dispatch({ type: 'SET_PRODUCTS', payload: mockProducts });
-          dispatch({ type: 'SET_MARKET_TRENDS', payload: mockMarketTrends });
+// Check if environment variables are properly configured
+const isSupabaseConfigured = supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'https://your-project.supabase.co' && 
+  supabaseAnonKey !== 'your-anon-key-here'
+
+// Only create Supabase client if properly configured
+export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null
+
+// Database types
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          name: string
+          role: 'farmer' | 'consumer'
+          location: string
+          phone?: string
+          avatar_url?: string
+          created_at: string
+          updated_at: string
         }
-        
-        // Initialize other mock data
-        dispatch({ type: 'SET_FARMERS', payload: mockFarmers });
-        dispatch({ type: 'SET_NGOS', payload: mockNGOs });
-        dispatch({ type: 'SET_NEWS_ARTICLES', payload: mockNewsArticles });
-        
-        // Check for existing user session
-        const user = await getCurrentUser();
-        if (user) {
-          dispatch({ type: 'SET_USER', payload: user });
-          console.log('✅ User session restored:', user.name, `(${user.role})`);
+        Insert: {
+          id: string
+          email: string
+          name: string
+          role: 'farmer' | 'consumer'
+          location: string
+          phone?: string
+          avatar_url?: string
+          created_at?: string
+          updated_at?: string
         }
-        
-      } catch (error) {
-        console.error('❌ App initialization error:', error);
-        // Fallback to mock data on error
-        const { mockProducts, mockMarketTrends } = await import('./data/mockData');
-        dispatch({ type: 'SET_PRODUCTS', payload: mockProducts });
-        dispatch({ type: 'SET_MARKET_TRENDS', payload: mockMarketTrends });
-        dispatch({ type: 'SET_FARMERS', payload: mockFarmers });
-        dispatch({ type: 'SET_NGOS', payload: mockNGOs });
-        dispatch({ type: 'SET_NEWS_ARTICLES', payload: mockNewsArticles });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    initializeApp();
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          const user = await getCurrentUser();
-          if (user) {
-            dispatch({ type: 'SET_USER', payload: user });
-            console.log('✅ User signed in:', user.name, `(${user.role})`);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          dispatch({ type: 'SET_USER', payload: null });
-          dispatch({ type: 'CLEAR_CART' });
-          console.log('✅ User signed out');
+        Update: {
+          id?: string
+          email?: string
+          name?: string
+          role?: 'farmer' | 'consumer'
+          location?: string
+          phone?: string
+          avatar_url?: string
+          updated_at?: string
         }
       }
-    );
-    
-    return () => subscription.unsubscribe();
-  }, [dispatch]);
-
-  useEffect(() => {
-    // Hash-based routing
-    const handleHashChange = () => {
-      const hash = window.location.hash.substring(1);
-      if (hash) {
-        setCurrentPage(hash);
+      products: {
+        Row: {
+          id: string
+          name: string
+          price: number
+          unit: string
+          quantity: number
+          location: string
+          image: string
+          farmer_id: string
+          farmer_name: string
+          rating: number
+          description: string
+          category: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          price: number
+          unit: string
+          quantity: number
+          location: string
+          image: string
+          farmer_id: string
+          farmer_name: string
+          rating?: number
+          description?: string
+          category: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          price?: number
+          unit?: string
+          quantity?: number
+          location?: string
+          image?: string
+          farmer_id?: string
+          farmer_name?: string
+          rating?: number
+          description?: string
+          category?: string
+          updated_at?: string
+        }
       }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Initial load
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  useEffect(() => {
-    // Apply dark mode class to body
-    if (state.isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [state.isDarkMode]);
-
-  const renderCurrentPage = () => {
-    // Check authentication for protected routes
-    if (!state.user && (currentPage === 'farmer-dashboard' || currentPage === 'consumer-dashboard')) {
-      setShowAuthModal(true);
-      return <HomePage />;
-    }
-
-    // Check role-based access
-    if (state.user) {
-      if (currentPage === 'farmer-dashboard' && state.user.role !== 'farmer') {
-        return (
-          <div className={`min-h-screen flex items-center justify-center ${
-            state.isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-          }`}>
-            <div className="text-center">
-              <h2 className={`text-2xl font-bold mb-4 ${
-                state.isDarkMode ? 'text-white' : 'text-gray-800'
-              }`}>
-                Access Denied
-              </h2>
-              <p className={`mb-4 ${
-                state.isDarkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Only farmers can access the Farmer Dashboard.
-              </p>
-              <button
-                onClick={() => window.location.hash = 'home'}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Go to Home
-              </button>
-            </div>
-          </div>
-        );
+      orders: {
+        Row: {
+          id: string
+          user_id: string
+          farmer_id: string
+          items: any
+          total: number
+          status: 'pending' | 'confirmed' | 'shipped' | 'delivered'
+          delivery_address: string
+          payment_method: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          farmer_id: string
+          items: any
+          total: number
+          status?: 'pending' | 'confirmed' | 'shipped' | 'delivered'
+          delivery_address: string
+          payment_method: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          farmer_id?: string
+          items?: any
+          total?: number
+          status?: 'pending' | 'confirmed' | 'shipped' | 'delivered'
+          delivery_address?: string
+          payment_method?: string
+          updated_at?: string
+        }
       }
-      
-      if (currentPage === 'consumer-dashboard' && state.user.role !== 'consumer') {
-        return (
-          <div className={`min-h-screen flex items-center justify-center ${
-            state.isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-          }`}>
-            <div className="text-center">
-              <h2 className={`text-2xl font-bold mb-4 ${
-                state.isDarkMode ? 'text-white' : 'text-gray-800'
-              }`}>
-                Access Denied
-              </h2>
-              <p className={`mb-4 ${
-                state.isDarkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Only consumers can access the Consumer Dashboard.
-              </p>
-              <button
-                onClick={() => window.location.hash = 'home'}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Go to Home
-              </button>
-            </div>
-          </div>
-        );
+      market_trends: {
+        Row: {
+          id: string
+          crop_name: string
+          current_price: number
+          predicted_price: number
+          price_change: number
+          demand_level: 'low' | 'medium' | 'high'
+          supply_level: 'low' | 'medium' | 'high'
+          recommendation: 'sell' | 'hold' | 'wait'
+          confidence: number
+          factors: string[]
+          date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          crop_name: string
+          current_price: number
+          predicted_price: number
+          price_change: number
+          demand_level: 'low' | 'medium' | 'high'
+          supply_level: 'low' | 'medium' | 'high'
+          recommendation: 'sell' | 'hold' | 'wait'
+          confidence: number
+          factors: string[]
+          date: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          crop_name?: string
+          current_price?: number
+          predicted_price?: number
+          price_change?: number
+          demand_level?: 'low' | 'medium' | 'high'
+          supply_level?: 'low' | 'medium' | 'high'
+          recommendation?: 'sell' | 'hold' | 'wait'
+          confidence?: number
+          factors?: string[]
+          date?: string
+          created_at?: string
+        }
       }
     }
-
-    switch (currentPage) {
-      case 'farmer-dashboard':
-        return <FarmerDashboard />;
-      case 'consumer-dashboard':
-        return <ConsumerDashboard />;
-      case 'adopt-farm':
-        return <AdoptAFarm />;
-      case 'ngo-support':
-        return <NGOSupport />;
-      case 'market-trends':
-        return <MarketTrends />;
-      case 'news':
-        return <FarmerNews />;
-      default:
-        return <HomePage />;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading KisanConnect...</p>
-          {!dbConnected && (
-            <p className="text-sm text-yellow-600 mt-2">
-              Database connection in progress...
-            </p>
-          )}
-        </div>
-      </div>
-    );
   }
-
-  return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      state.isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-    }`}>
-      {/* Database Status Indicator */}
-      {!dbConnected && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm">
-                Database not connected. Using demo data. Please configure Supabase connection.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <Header onShowAuth={() => setShowAuthModal(true)} />
-      {renderCurrentPage()}
-      <ChatBot />
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      <CheckoutModal />
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <AppProvider>
-      <TranslationProvider>
-        <AppContent />
-      </TranslationProvider>
-    </AppProvider>
-  );
 }
 
-export default App;
+// Auth helper functions
+export const signUp = async (email: string, password: string, userData: any) => {
+  try {
+    if (!isSupabaseConfigured) {
+      throw new Error('Database not configured. Please set up Supabase credentials.');
+    }
+    
+    console.log('🔄 Starting sign up process...', { email, role: userData.role });
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: userData.name,
+          role: userData.role,
+          location: userData.location,
+          phone: userData.phone
+        }
+      }
+    })
+    
+    if (error) {
+      console.error('❌ Sign up error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Auth user created:', data.user?.id);
+    
+    // Create profile in profiles table
+    if (data.user) {
+      console.log('🔄 Creating profile in database...');
+      
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role,
+          location: userData.location,
+          phone: userData.phone || null
+        })
+      
+      if (profileError) {
+        console.error('❌ Profile creation error:', profileError);
+        throw profileError;
+      }
+      
+      console.log('✅ Profile created successfully');
+    }
+    
+    return data
+  } catch (error) {
+    console.error('❌ Sign up error:', error)
+    throw error
+  }
+}
+
+export const signIn = async (email: string, password: string) => {
+  try {
+    if (!isSupabaseConfigured) {
+      throw new Error('Database not configured. Please set up Supabase credentials.');
+    }
+    
+    console.log('🔄 Starting sign in process...', { email });
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    
+    if (error) {
+      console.error('❌ Sign in error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Sign in successful:', data.user?.id);
+    return data
+  } catch (error) {
+    console.error('❌ Sign in error:', error)
+    throw error
+  }
+}
+
+export const signOut = async () => {
+  try {
+    console.log('🔄 Signing out...');
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    console.log('✅ Sign out successful');
+  } catch (error) {
+    console.error('❌ Sign out error:', error)
+    throw error
+  }
+}
+
+export const getCurrentUser = async () => {
+  try {
+    if (!isSupabaseConfigured) {
+      return null;
+    }
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      console.log('🔄 Fetching user profile...', user.id);
+      
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (error) {
+        console.error('❌ Profile fetch error:', error)
+        return null
+      }
+      
+      console.log('✅ Profile fetched:', profile.name, `(${profile.role})`);
+      return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        location: profile.location,
+        phone: profile.phone,
+        avatar: profile.avatar_url
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('❌ Get current user error:', error)
+    return null
+  }
+}
+
+// Product operations
+export const addProduct = async (product: any) => {
+  try {
+    if (!isSupabaseConfigured) {
+      throw new Error('Database not configured. Please set up Supabase credentials.');
+    }
+    
+    console.log('🔄 Adding product...', product.name);
+    
+    const { data, error } = await supabase
+      .from('products')
+      .insert(product)
+      .select()
+      .single()
+    
+    if (error) throw error
+    
+    console.log('✅ Product added:', data.name);
+    return data
+  } catch (error) {
+    console.error('❌ Add product error:', error)
+    throw error
+  }
+}
+
+export const getProducts = async () => {
+  try {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
+    
+    console.log('🔄 Fetching products...');
+    
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    console.log('✅ Products fetched:', data?.length || 0);
+    return data || []
+  } catch (error) {
+    console.error('❌ Get products error:', error)
+    return []
+  }
+}
+
+export const getFarmerProducts = async (farmerId: string) => {
+  try {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
+    
+    console.log('🔄 Fetching farmer products...', farmerId);
+    
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('farmer_id', farmerId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    console.log('✅ Farmer products fetched:', data?.length || 0);
+    return data || []
+  } catch (error) {
+    console.error('❌ Get farmer products error:', error)
+    return []
+  }
+}
+
+// Order operations
+export const createOrder = async (order: any) => {
+  try {
+    if (!isSupabaseConfigured) {
+      throw new Error('Database not configured. Please set up Supabase credentials.');
+    }
+    
+    console.log('🔄 Creating order...', order.total);
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .insert(order)
+      .select()
+      .single()
+    
+    if (error) throw error
+    
+    console.log('✅ Order created:', data.id);
+    return data
+  } catch (error) {
+    console.error('❌ Create order error:', error)
+    throw error
+  }
+}
+
+export const getFarmerOrders = async (farmerId: string) => {
+  try {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
+    
+    console.log('🔄 Fetching farmer orders...', farmerId);
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('farmer_id', farmerId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    console.log('✅ Farmer orders fetched:', data?.length || 0);
+    return data || []
+  } catch (error) {
+    console.error('❌ Get farmer orders error:', error)
+    return []
+  }
+}
+
+export const getConsumerOrders = async (userId: string) => {
+  try {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
+    
+    console.log('🔄 Fetching consumer orders...', userId);
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    console.log('✅ Consumer orders fetched:', data?.length || 0);
+    return data || []
+  } catch (error) {
+    console.error('❌ Get consumer orders error:', error)
+    return []
+  }
+}
+
+// Market trends operations
+export const getMarketTrends = async () => {
+  try {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
+    
+    console.log('🔄 Fetching market trends...');
+    
+    const { data, error } = await supabase
+      .from('market_trends')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    console.log('✅ Market trends fetched:', data?.length || 0);
+    return data || []
+  } catch (error) {
+    console.error('❌ Get market trends error:', error)
+    return []
+  }
+}
+
+// Test database connection
+export const testConnection = async () => {
+  try {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.log('⚠️ Supabase not configured - using demo mode');
+      return false;
+    }
+    
+    console.log('🔄 Testing database connection...');
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('count')
+      .limit(1)
+    
+    if (error) throw error
+    
+    console.log('✅ Database connection successful');
+    return true
+  } catch (error) {
+    console.error('❌ Database connection test failed:', error)
+    return false
+  }
+}
