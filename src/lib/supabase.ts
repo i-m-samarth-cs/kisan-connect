@@ -1,16 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
 
-// Check if environment variables are properly configured
-const isSupabaseConfigured = supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl !== 'https://your-project.supabase.co' && 
-  supabaseAnonKey !== 'your-anon-key-here'
-
-// Only create Supabase client if properly configured
-export const supabase = isSupabaseConfigured 
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database types
 export interface Database {
@@ -187,10 +180,6 @@ export interface Database {
 // Auth helper functions
 export const signUp = async (email: string, password: string, userData: any) => {
   try {
-    if (!isSupabaseConfigured) {
-      throw new Error('Database not configured. Please set up Supabase credentials.');
-    }
-    
     console.log('🔄 Starting sign up process...', { email, role: userData.role });
     
     const { data, error } = await supabase.auth.signUp({
@@ -245,10 +234,6 @@ export const signUp = async (email: string, password: string, userData: any) => 
 
 export const signIn = async (email: string, password: string) => {
   try {
-    if (!isSupabaseConfigured) {
-      throw new Error('Database not configured. Please set up Supabase credentials.');
-    }
-    
     console.log('🔄 Starting sign in process...', { email });
     
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -283,10 +268,6 @@ export const signOut = async () => {
 
 export const getCurrentUser = async () => {
   try {
-    if (!isSupabaseConfigured) {
-      return null;
-    }
-    
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
@@ -325,10 +306,6 @@ export const getCurrentUser = async () => {
 // Product operations
 export const addProduct = async (product: any) => {
   try {
-    if (!isSupabaseConfigured) {
-      throw new Error('Database not configured. Please set up Supabase credentials.');
-    }
-    
     console.log('🔄 Adding product...', product.name);
     
     const { data, error } = await supabase
@@ -349,10 +326,6 @@ export const addProduct = async (product: any) => {
 
 export const getProducts = async () => {
   try {
-    if (!isSupabaseConfigured) {
-      return [];
-    }
-    
     console.log('🔄 Fetching products...');
     
     const { data, error } = await supabase
@@ -372,10 +345,6 @@ export const getProducts = async () => {
 
 export const getFarmerProducts = async (farmerId: string) => {
   try {
-    if (!isSupabaseConfigured) {
-      return [];
-    }
-    
     console.log('🔄 Fetching farmer products...', farmerId);
     
     const { data, error } = await supabase
@@ -397,10 +366,6 @@ export const getFarmerProducts = async (farmerId: string) => {
 // Order operations
 export const createOrder = async (order: any) => {
   try {
-    if (!isSupabaseConfigured) {
-      throw new Error('Database not configured. Please set up Supabase credentials.');
-    }
-    
     console.log('🔄 Creating order...', order.total);
     
     const { data, error } = await supabase
@@ -421,10 +386,6 @@ export const createOrder = async (order: any) => {
 
 export const getFarmerOrders = async (farmerId: string) => {
   try {
-    if (!isSupabaseConfigured) {
-      return [];
-    }
-    
     console.log('🔄 Fetching farmer orders...', farmerId);
     
     const { data, error } = await supabase
@@ -445,10 +406,6 @@ export const getFarmerOrders = async (farmerId: string) => {
 
 export const getConsumerOrders = async (userId: string) => {
   try {
-    if (!isSupabaseConfigured) {
-      return [];
-    }
-    
     console.log('🔄 Fetching consumer orders...', userId);
     
     const { data, error } = await supabase
@@ -470,10 +427,6 @@ export const getConsumerOrders = async (userId: string) => {
 // Market trends operations
 export const getMarketTrends = async () => {
   try {
-    if (!isSupabaseConfigured) {
-      return [];
-    }
-    
     console.log('🔄 Fetching market trends...');
     
     const { data, error } = await supabase
@@ -494,12 +447,6 @@ export const getMarketTrends = async () => {
 // Test database connection
 export const testConnection = async () => {
   try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.log('⚠️ Supabase not configured - using demo mode');
-      return false;
-    }
-    
     console.log('🔄 Testing database connection...');
     
     const { data, error } = await supabase
